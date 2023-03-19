@@ -10,7 +10,7 @@ import {
 import { SHARED_PROMPT } from "./sharedPrompt";
 import { summarizePr } from "./summarizePr";
 
-const OPEN_AI_PRIMING = `${SHARED_PROMPT}
+const OPEN_AI_PRIMING = `
 After the git diff of the first file, there will be an empty line, and then the git diff of the next file. 
 
 For comments that refer to 1 or 2 modified files,
@@ -94,12 +94,23 @@ async function getOpenAICompletion(
       throw new Error("OpenAI query too big");
     }
 
-    const response = await openai.createCompletion({
+    const response = await openai.createChatCompletion({
       model: MODEL_NAME,
-      prompt: openAIPrompt,
+      messages: [
+        {
+          role: "system",
+          content: SHARED_PROMPT,
+        },
+        {
+          role: "user",
+          content: openAIPrompt,
+        },
+      ],
       max_tokens: MAX_TOKENS,
       temperature: TEMPERATURE,
     });
+
+    console.log("response", response.data);
 
     if (
       response.data.choices !== undefined &&
@@ -107,7 +118,8 @@ async function getOpenAICompletion(
     ) {
       completion = postprocessSummary(
         diffResponse.data.files.map((file: any) => file.filename),
-        response.data.choices[0].text ?? "Error: couldn't generate summary",
+        response.data.choices[0].message?.content ??
+          "Error: couldn't generate summary",
         diffMetadata
       );
     }
